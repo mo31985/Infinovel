@@ -111,6 +111,8 @@ function App() {
   const [currentLoadLimit, setCurrentLoadLimit] = useState(DEFAULT_LOAD_LIMIT);
   const [currentSaveLimit, setCurrentSaveLimit] = useState(DEFAULT_SAVE_LIMIT);
 
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userDocRef, setUserDocRef] = useState(null);
   // 角色能力值狀態 (移除 XP 和 Level 相關屬性)
   const [characterStats, setCharacterStats] = useState({
     strength: 1, // 基礎值
@@ -503,7 +505,7 @@ function App() {
 
     // API key for Gemini models. If not provided by the environment, it defaults to an empty string.
     // This allows Canvas to inject the key at runtime for default models.
-    const apiKey = typeof __api_key !== 'undefined' && __api_key ? __api_key : ""; 
+    const apiKey = ""; // 環境未提供 API 金鑰，預設為空字串
 
     const textPayload = {
       contents: chatHistory,
@@ -1043,17 +1045,23 @@ function App() {
             luck: 0,
             endurance: 0,
           });
-          setLoadCount(0);
-          setSaveCount(0);
-          setIsVIP(false);
+          setUserProfile(prev => ({
+            ...prev,
+            loadCount: 0,
+            saveCount: 0,
+            isVIP: false,
+          }));
           setStatPoints(INITIAL_STAT_POINTS);
           setStats({ strength: 0, agility: 0, intelligence: 0, luck: 0, endurance: 0 });
         } else {
           console.log("User document exists, loading data.");
           const userData = userDocSnap.data();
-          setLoadCount(userData.loadCount || 0);
-          setSaveCount(userData.saveCount || 0);
-          setIsVIP(userData.isVIP || false);
+          setUserProfile(prev => ({
+            ...prev,
+            loadCount: userData.loadCount || 0,
+            saveCount: userData.saveCount || 0,
+            isVIP: userData.isVIP || false,
+          }));
           setStatPoints(userData.statPoints || INITIAL_STAT_POINTS);
           setStats({
             strength: userData.strength || 0,
@@ -1082,20 +1090,27 @@ function App() {
           }
         }
         // 重置所有用戶相關的狀態
-        setLoadCount(0);
-        setSaveCount(0);
+        setUserProfile(prev => ({
+          ...prev,
+          loadCount: 0,
+          saveCount: 0,
+          isVIP: false,
+        }));
         setUserDocRef(null);
-        setIsVIP(false);
         setStatPoints(INITIAL_STAT_POINTS); // 重置能力點數
         setStats({ strength: 0, agility: 0, intelligence: 0, luck: 0, endurance: 0 }); // 重置能力值
       }
     });
 
-    // ... 返回清理函數
-    return () => unsubscribe();
-  }, [auth, db]); // 依賴於 auth 和 db 實例
+     // ... 返回清理函數
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Error initializing Firebase:', error);
+    }
+  };
+
     initFirebase();
-  }, []); // 空依賴陣列表示這只會在組件掛載時運行一次
+  }, [auth, db]); // 依賴於 auth 和 db 實例
 
 // 處理 Email 註冊
 const handleEmailRegister = async () => {
@@ -1196,16 +1211,17 @@ const handleSignOut = async () => {
     console.log("User signed out.");
     // 登出後，將狀態重置為匿名用戶或未登入狀態
     setCurrentUser(null);
-    setLoadCount(0); // 重置載入計數
-    setSaveCount(0); // 重置保存計數
+    setUserProfile({
+      loadCount: 0,
+      saveCount: 0,
+      isVIP: false,
+      isRegistered: false,
+      email: null,
+    });
     setUserDocRef(null); // 清除用戶文檔引用
-    setIsVIP(false); // 重置VIP狀態
 
     // 可以選擇性地清除故事進度或重置遊戲狀態
     setCurrentChapter('');
-    setChapterHistory([]);
-    setStoryId(null);
-    setStorySaved(false);
     // ... 其他您希望重置的狀態
     // 自動讓用戶以匿名方式登入，這樣他們仍然可以遊玩
     await signInAnonymously(auth);
@@ -1484,7 +1500,7 @@ const handleSignOut = async () => {
   }
 
   // --- 主要應用程式界面 ---
-  return (
+  return (<>
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-gray-100 p-4 sm:p-6 flex flex-col items-center">
       {/* 用戶 ID、VIP 狀態和認證控制 */}
       <div className="w-full max-w-4xl flex justify-between items-center text-sm text-gray-400 mb-4">
@@ -1798,8 +1814,8 @@ const handleSignOut = async () => {
       </footer>
     </div>
 
-	{/* 登入/註冊彈窗 */}
-{showAuthModal && (
+        {/* 登入/註冊彈窗 */}
+        {showAuthModal && (
   <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
     <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md">
       <h2 className="text-3xl font-bold text-purple-400 mb-6 text-center font-inter">
@@ -1871,7 +1887,7 @@ const handleSignOut = async () => {
     </div>
   </div>
 )}
-  );
+  </>);
 }
 
 export default App;
