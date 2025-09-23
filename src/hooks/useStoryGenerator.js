@@ -130,7 +130,7 @@ export const useStoryGenerator = (db, auth, currentChapter, characterStats, getC
 
     // API key for Gemini models. If not provided by the environment, it defaults to an empty string.
     // This allows Canvas to inject the key at runtime for default models.
-    const apiKey = ""; // 環境未提供 API 金鑰，預設為空字串
+    const apiKey = "AIzaSyDl2tlLdSms46F16dpB-ZJrnWP-1IQCg1A"; // 環境未提供 API 金鑰，預設為空字串
 
     const textPayload = {
       contents: chatHistory,
