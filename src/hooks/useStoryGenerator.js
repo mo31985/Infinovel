@@ -108,7 +108,8 @@ ${userChoiceText}
     // 填入你的 Hugging Face Token（從 https://huggingface.co/settings/tokens 獲取）
     // 完全不在代碼中暴露 Token
 const HF_TOKEN = process.env.REACT_APP_HF_TOKEN || "";
-
+const HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large";
+    
 if (!HF_TOKEN) {
   throw new Error('缺少 Hugging Face API Token，請設定環境變數');
 }
