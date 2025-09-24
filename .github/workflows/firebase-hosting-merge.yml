@@ -12,9 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: npm install && npm run build
-  env:
-    REACT_APP_HF_TOKEN: ${{ secrets.HF_TOKEN }}
-    CI: false
+        env:
+          REACT_APP_HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          CI: false
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
