@@ -1,20 +1,21 @@
 import { useCallback } from 'react';
 import { doc, setDoc, getDoc, updateDoc, increment, collection } from 'firebase/firestore';
 
-const APP_ID = 'infinovel'; // 直接定義，避免引用 constants
-
 export const useStoryGenerator = (db, auth, currentChapter, characterStats, getCurrentChapterUniqueId) => {
   
+  // 調用 LLM 生成下一章節內容
   const generateNextChapter = useCallback(async (userChoiceText, selectedChoiceId, isAutoChoice = false) => {
     if (!db || !auth || !auth.currentUser || !currentChapter || !selectedChoiceId) {
       throw new Error('缺少必要的參數或服務');
     }
 
+    // 直接定義常量，避免導入問題
+    const APP_ID = 'infinovel';
+    let chosenChoicePercentage = 'N/A'; // 📌 在函數開始就定義
+
     // 更新選擇統計數據
     const chapterUniqueId = getCurrentChapterUniqueId(currentChapter);
     const statsDocRef = doc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'choice_stats'), chapterUniqueId);
-
-    let chosenChoicePercentage = 'N/A'; // 👈 確保定義了這個變數
 
     try {
       const docSnap = await getDoc(statsDocRef);
@@ -105,7 +106,7 @@ ${userChoiceText}
   ]
 }`;
 
-    // 🔥 使用 Hugging Face API
+    // 使用 Hugging Face API
     const HF_TOKEN = process.env.REACT_APP_HF_TOKEN || "";
     const HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large";
     
@@ -150,12 +151,10 @@ ${userChoiceText}
       // 嘗試解析 JSON
       let parsedChapter;
       try {
-        // 尋找JSON內容（可能包含額外文字）
         const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           parsedChapter = JSON.parse(jsonMatch[0]);
         } else {
-          // 如果找不到JSON，創建一個基本的章節
           parsedChapter = {
             chapterId: `chapter_${Date.now()}`,
             title: "故事繼續",
@@ -174,7 +173,6 @@ ${userChoiceText}
         }
       } catch (parseErr) {
         console.error("JSON解析錯誤:", parseErr);
-        // 創建回退章節
         parsedChapter = {
           chapterId: `fallback_${Date.now()}`,
           title: "故事轉折",
@@ -193,7 +191,6 @@ ${userChoiceText}
         };
       }
 
-      // 確保有 chapterId
       if (!parsedChapter.chapterId) {
         parsedChapter.chapterId = getCurrentChapterUniqueId(parsedChapter);
       }
