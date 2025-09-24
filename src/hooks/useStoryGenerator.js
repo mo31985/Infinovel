@@ -1,22 +1,23 @@
 import { useCallback } from 'react';
 import { doc, setDoc, getDoc, updateDoc, increment, collection } from 'firebase/firestore';
-import { APP_ID } from '../utils/constants';
+
+const APP_ID = 'infinovel'; // 直接定義，避免引用 constants
 
 export const useStoryGenerator = (db, auth, currentChapter, characterStats, getCurrentChapterUniqueId) => {
   
-  // 調用 LLM 生成下一章節內容
   const generateNextChapter = useCallback(async (userChoiceText, selectedChoiceId, isAutoChoice = false) => {
     if (!db || !auth || !auth.currentUser || !currentChapter || !selectedChoiceId) {
       throw new Error('缺少必要的參數或服務');
     }
 
-    // 更新選擇統計數據 (保持原來的邏輯)
+    // 更新選擇統計數據
     const chapterUniqueId = getCurrentChapterUniqueId(currentChapter);
     const statsDocRef = doc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'choice_stats'), chapterUniqueId);
 
+    let chosenChoicePercentage = 'N/A'; // 👈 確保定義了這個變數
+
     try {
       const docSnap = await getDoc(statsDocRef);
-      let chosenChoicePercentage = 'N/A';
       
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -105,14 +106,12 @@ ${userChoiceText}
 }`;
 
     // 🔥 使用 Hugging Face API
-    // 填入你的 Hugging Face Token（從 https://huggingface.co/settings/tokens 獲取）
-    // 完全不在代碼中暴露 Token
-const HF_TOKEN = process.env.REACT_APP_HF_TOKEN || "";
-const HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large";
+    const HF_TOKEN = process.env.REACT_APP_HF_TOKEN || "";
+    const HF_API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-large";
     
-if (!HF_TOKEN) {
-  throw new Error('缺少 Hugging Face API Token，請設定環境變數');
-}
+    if (!HF_TOKEN) {
+      throw new Error('缺少 Hugging Face API Token，請設定環境變數');
+    }
 
     try {
       const hfResponse = await fetch(HF_API_URL, {
