@@ -6,8 +6,8 @@ export const VIP_SAVE_LIMIT = 10; // VIP 用戶的保存次數上限
 export const INITIAL_STAT_POINTS = 10; // 角色創建時可分配的初始能力點數
 export const STAT_ACCUMULATION_THRESHOLD = 3; // 每累計3點提升1點能力值
 
-// 從全局作用域獲取應用程式 ID，並設置回退機制
-export const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'infinovel';
+// 簡化版本，避免全局變數
+export const APP_ID = 'infinovel';
 
 // 從 Canvas 環境提供的全局變數獲取 Firebase 配置，並安全地解析
 export const FIREBASE_CONFIG = (() => {
