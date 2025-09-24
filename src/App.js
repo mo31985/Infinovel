@@ -16,15 +16,15 @@ const VIP_LOAD_LIMIT = 20;
 const VIP_SAVE_LIMIT = 10;
 const INITIAL_STAT_POINTS = 10;
 
-// Firebase 配置 - 硬編碼，避免全局變數問題
+// Firebase 配置 - 使用環境變數（安全）
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyB3sOJKEfhCAWcB5JnJBH5xGkCtSVELlGU",
-  authDomain: "infinovel.firebaseapp.com", 
-  projectId: "infinovel",
-  storageBucket: "infinovel.firebasestorage.app",
-  messagingSenderId: "647516073628",
-  appId: "1:647516073628:web:24a10ed7e7aa5e4f1c3bd2",
-  measurementId: "G-HFKKDWVMYJ"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
 // 初始故事內容
