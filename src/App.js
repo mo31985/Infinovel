@@ -16,7 +16,7 @@ const VIP_LOAD_LIMIT = 20;
 const VIP_SAVE_LIMIT = 10;
 const INITIAL_STAT_POINTS = 10;
 
-// Firebase 配置
+// Firebase 配置 - 硬編碼，避免全局變數問題
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyB3sOJKEfhCAWcB5JnJBH5xGkCtSVELlGU",
   authDomain: "infinovel.firebaseapp.com", 
@@ -61,7 +61,6 @@ function App() {
   // 本地狀態
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
-  const timerRef = useRef(null);
 
   // Helper functions
   const getCurrentChapterUniqueId = useCallback((chapter) => {
