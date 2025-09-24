@@ -74,17 +74,24 @@ function App() {
   const { generateNextChapter } = useStoryGenerator(db, auth, currentChapter, characterStats, getCurrentChapterUniqueId);
 
   // Firebase 初始化
-  useEffect(() => {
-    const initializeFirebase = async () => {
-      try {
-        dispatch({ type: 'SET_LOADING', payload: true });
-        
-        const app = initializeApp(FIREBASE_CONFIG);
-        const firebaseAuth = getAuth(app);
-        const firestore = getFirestore(app);
-        
-        setAuth(firebaseAuth);
-        setDb(firestore);
+useEffect(() => {
+  const initializeFirebase = async () => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      
+      // 驗證環境變數
+      if (!FIREBASE_CONFIG.apiKey) {
+        throw new Error('Firebase API Key 未設定');
+      }
+      
+      console.log('Firebase 配置已載入'); // 開發時可用
+      
+      const app = initializeApp(FIREBASE_CONFIG);
+      const firebaseAuth = getAuth(app);
+      const firestore = getFirestore(app);
+      
+      setAuth(firebaseAuth);
+      setDb(firestore);
 
         // 匿名登入
         const userCredential = await signInAnonymously(firebaseAuth);
