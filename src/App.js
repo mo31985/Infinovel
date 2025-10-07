@@ -27,8 +27,8 @@ import LoadingScreen from './components/LoadingScreen';
 import ErrorScreen from './components/ErrorScreen';
 import GameScreen from './components/GameScreen';
 import WelcomeScreen from './components/WelcomeScreen';
-import CharacterCreation from './components/CharacterCreation'; // 新增
-import AuthModal from './components/AuthModal'; // 新增
+import CharacterCreation from './components/CharacterCreation';
+import AuthModal from './components/AuthModal';
 
 // =================================================================
 //                      CONFIG & INITIAL DATA
@@ -37,13 +37,21 @@ const FIREBASE_CONFIG = {
     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
     authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
     projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-    // ...其他配置
+    storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.REACT_APP_FIREBASE_APP_ID,
 };
 
 const initialStoryData = {
   chapterId: 'intro_chapter_1',
   title: '迷霧中的線索：倫敦的蒸汽與魔法',
-  // ... 其他內容
+  content: [
+    '在維多利亞時代的倫敦，蒸汽機的轟鳴聲與古老魔法的低語交織...', // 內容省略
+  ],
+  choices: [
+    { text: '立即前往時鐘塔...', choiceId: 'to_clock_tower' },
+    // ... 其他選項
+  ],
 };
 
 // =================================================================
@@ -66,24 +74,18 @@ function App() {
   // ------------------------- Local State ---------------------------
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
-  
-  // 新增：控制 AuthModal 的狀態
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login'); // 'login' or 'register'
+  const [authMode, setAuthMode] = useState('login');
   const [authError, setAuthError] = useState('');
-
-  // 新增：控制角色創建畫面的狀態
   const [showCharacterCreation, setShowCharacterCreation] = useState(false);
 
-
   // ----------------------- Custom Hooks & Helpers -------------------
-  const { generateNextChapter } = useStoryGenerator(/* ... */);
+  const { generateNextChapter } = useStoryGenerator(db, auth, currentChapter, characterStats);
 
   // =================================================================
   //                       CORE FUNCTIONS
   // =================================================================
 
-  // -------------------- Data Persistence (Save/Load) --------------------
   const saveGameData = useCallback(async (dataToSave) => {
     if (!userId || !db) return;
     try {
@@ -95,7 +97,6 @@ function App() {
     }
   }, [userId, db]);
 
-  // -------------------- Authentication Handlers --------------------
   const handleAuthSubmit = useCallback(async (email, password) => {
     if (!auth) return;
     setAuthError('');
@@ -104,19 +105,17 @@ function App() {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // 新註冊用戶，立刻為他建立 Firestore 文件
         const userDocRef = doc(db, 'users', userCredential.user.uid);
         const initialData = {
           characterStats: characterStats,
           currentChapterId: initialStoryData.chapterId,
-          characterCreated: false, // 【重要】新用戶角色未創建
+          characterCreated: false,
         };
         await setDoc(userDocRef, initialData);
       }
-      setShowAuthModal(false); // 成功後關閉 Modal
+      setShowAuthModal(false);
     } catch (error) {
       setAuthError(error.message);
-      console.error(`${authMode} 失敗:`, error);
     }
   }, [auth, db, authMode, characterStats]);
 
@@ -130,20 +129,16 @@ function App() {
     }
   }, [auth, dispatch]);
 
-
-  // -------------------- Character Creation Handler --------------------
   const handleCharacterCreate = useCallback(async (finalStats) => {
     if (!userId) return;
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      // 更新 Firestore 資料
       await saveGameData({
         characterStats: finalStats,
-        characterCreated: true, // 【重要】標記角色已創建
+        characterCreated: true,
       });
-      // 更新本地 state
       dispatch({ type: 'SET_CHARACTER_STATS', payload: finalStats });
-      setShowCharacterCreation(false); // 關閉創建畫面，進入遊戲
+      setShowCharacterCreation(false);
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: '角色創建失敗' });
     } finally {
@@ -151,12 +146,31 @@ function App() {
     }
   }, [userId, dispatch, saveGameData]);
 
-  // -------------------- Game Logic Handler --------------------
+  // 【錯誤修正處】
   const handleChoice = useCallback(async (choiceText, choiceId) => {
-    // ... (原有邏輯不變) ...
-    // 在成功生成新章節後，自動存檔
-    await saveGameData({ currentChapterId: result.chapter.chapterId });
-  }, [/* ...原有依賴項... */, saveGameData]);
+    if (!db || !auth || !currentChapter) {
+      dispatch({ type: 'SET_ERROR', payload: '系統未準備就緒' });
+      return;
+    }
+    dispatch({ type: 'SET_IS_LOADING_TEXT', payload: true });
+    dispatch({ type: 'SET_SHOW_CHOICES', payload: false });
+    try {
+      // **修正點**：確保 `result` 在 `try` 區塊內被宣告
+      const result = await generateNextChapter(choiceText, choiceId);
+      
+      if (result.success) {
+        dispatch({ type: 'SET_CURRENT_CHAPTER', payload: result.chapter });
+        await saveGameData({ currentChapterId: result.chapter.chapterId });
+      } else {
+        throw new Error(result.error || 'AI 生成失敗');
+      }
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: `生成章節時發生錯誤: ${error.message}` });
+    } finally {
+      dispatch({ type: 'SET_SHOW_CHOICES', payload: true });
+      dispatch({ type: 'SET_IS_LOADING_TEXT', payload: false });
+    }
+  }, [db, auth, currentChapter, generateNextChapter, dispatch, saveGameData]);
 
   // =================================================================
   //                    MAIN useEffect (APP LIFECYCLE)
@@ -176,7 +190,6 @@ function App() {
 
         let userData;
         if (!docSnap.exists()) {
-          // 處理訪客或首次社交登入的情況
           const initialData = {
             characterStats: characterStats,
             currentChapterId: initialStoryData.chapterId,
@@ -192,15 +205,12 @@ function App() {
         dispatch({ type: 'SET_USER_ID', payload: user.uid });
         dispatch({ type: 'SET_SHOW_WELCOME_SCREEN', payload: false });
 
-        // 【核心流程控制】
         if (userData.characterCreated) {
-          setShowCharacterCreation(false); // 角色已創建，直接玩
+          setShowCharacterCreation(false);
         } else {
-          setShowCharacterCreation(true); // 角色未創建，顯示創建畫面
+          setShowCharacterCreation(true);
         }
-
       } else {
-        // 沒有使用者，顯示歡迎畫面
         dispatch({ type: 'SET_SHOW_WELCOME_SCREEN', payload: true });
         setShowCharacterCreation(false);
       }
@@ -213,13 +223,8 @@ function App() {
   // =================================================================
   //                       RENDERING LOGIC
   // =================================================================
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (error) {
-    return <ErrorScreen error={error} />;
-  }
+  if (loading) return <LoadingScreen />;
+  if (error) return <ErrorScreen error={error} />;
 
   if (showWelcomeScreen) {
     return (
@@ -228,10 +233,10 @@ function App() {
           handleStartAsGuest={handleStartAsGuest}
           onShowAuthModal={(mode) => {
             setAuthMode(mode);
+            setAuthError('');
             setShowAuthModal(true);
           }}
         />
-        {/* AuthModal 現在由 App.js 控制，並疊加在 WelcomeScreen 之上 */}
         <AuthModal
           show={showAuthModal}
           mode={authMode}
@@ -244,7 +249,6 @@ function App() {
   }
 
   if (showCharacterCreation) {
-    // 假設 CharacterCreation 在完成時會呼叫 onComplete 並傳回 stats 物件
     return <CharacterCreation onComplete={handleCharacterCreate} />;
   }
 
@@ -256,8 +260,7 @@ function App() {
       showChoices={showChoices}
       handleChoice={handleChoice}
       characterStats={characterStats}
-      // 將 saveGameData 傳下去，給 GameControls 裡的手動存檔按鈕使用
-      saveGameData={saveGameData} 
+      saveGameData={saveGameData}
     />
   );
 }
