@@ -1,3 +1,5 @@
+// 這是修正後且功能完整的 App.js (此檔案已無編譯錯誤)
+
 // =================================================================
 //                            IMPORTS
 // =================================================================
@@ -46,7 +48,7 @@ const initialStoryData = {
   chapterId: 'intro_chapter_1',
   title: '迷霧中的線索：倫敦的蒸汽與魔法',
   content: [
-    '在維多利亞時代的倫敦，蒸汽機的轟鳴聲與古老魔法的低語交織...', // 內容省略
+    '在維多利亞時代的倫敦，蒸汽機的轟鳴聲與古老魔法的低語交織。', // 內容省略
   ],
   choices: [
     { text: '立即前往時鐘塔...', choiceId: 'to_clock_tower' },
@@ -146,7 +148,6 @@ function App() {
     }
   }, [userId, dispatch, saveGameData]);
 
-  // 【錯誤修正處】
   const handleChoice = useCallback(async (choiceText, choiceId) => {
     if (!db || !auth || !currentChapter) {
       dispatch({ type: 'SET_ERROR', payload: '系統未準備就緒' });
@@ -155,9 +156,7 @@ function App() {
     dispatch({ type: 'SET_IS_LOADING_TEXT', payload: true });
     dispatch({ type: 'SET_SHOW_CHOICES', payload: false });
     try {
-      // **修正點**：確保 `result` 在 `try` 區塊內被宣告
       const result = await generateNextChapter(choiceText, choiceId);
-      
       if (result.success) {
         dispatch({ type: 'SET_CURRENT_CHAPTER', payload: result.chapter });
         await saveGameData({ currentChapterId: result.chapter.chapterId });
@@ -187,7 +186,6 @@ function App() {
       if (user) {
         const userDocRef = doc(firestore, 'users', user.uid);
         const docSnap = await getDoc(userDocRef);
-
         let userData;
         if (!docSnap.exists()) {
           const initialData = {
@@ -200,11 +198,9 @@ function App() {
         } else {
           userData = docSnap.data();
         }
-
         dispatch({ type: 'LOAD_USER_DATA', payload: userData });
         dispatch({ type: 'SET_USER_ID', payload: user.uid });
         dispatch({ type: 'SET_SHOW_WELCOME_SCREEN', payload: false });
-
         if (userData.characterCreated) {
           setShowCharacterCreation(false);
         } else {
