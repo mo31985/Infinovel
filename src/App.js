@@ -192,32 +192,10 @@ useEffect(() => {
     );
   }
 
-  // 歡迎畫面
-  if (showWelcomeScreen) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-gray-100 flex items-center justify-center p-4">
-        <div className="text-center max-w-2xl">
-          <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Infinovel
-          </h1>
-          <p className="text-xl mb-8 text-gray-300">
-            進入維多利亞時代的倫敦，體驗蒸汽與魔法交織的冒險故事
-          </p>
-          <div className="bg-gray-800 p-6 rounded-lg mb-8">
-            <p className="text-green-400 mb-2">✅ Hugging Face AI 已就緒</p>
-            <p className="text-blue-400 mb-2">✅ 無地區限制</p>
-            <p className="text-purple-400">✅ 準備開始冒險</p>
-          </div>
-          <button
-            onClick={startGame}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 rounded-lg text-xl font-semibold transition-all duration-200 transform hover:scale-105"
-          >
-            開始冒險
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // 歡迎畫面
+  if (showWelcomeScreen) {
+    return <WelcomeScreen onStartGame={startGame} />;
+  }
 
   // 主遊戲畫面
   return (
