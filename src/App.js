@@ -73,40 +73,61 @@ function App() {
   // 使用 useStoryGenerator hook
   const { generateNextChapter } = useStoryGenerator(db, auth, currentChapter, characterStats, getCurrentChapterUniqueId);
 
-  // Firebase 初始化
+// Firebase 初始化
 useEffect(() => {
-  const initializeFirebase = async () => {
+  // 這一段程式碼只會在組件第一次載入時執行一次
+  const initializeFirebase = () => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      
+
       // 驗證環境變數
       if (!FIREBASE_CONFIG.apiKey) {
         throw new Error('Firebase API Key 未設定');
       }
-      
-      console.log('Firebase 配置已載入'); // 開發時可用
-      
+
       const app = initializeApp(FIREBASE_CONFIG);
       const firebaseAuth = getAuth(app);
       const firestore = getFirestore(app);
-      
+
       setAuth(firebaseAuth);
       setDb(firestore);
 
-        // 匿名登入
-        const userCredential = await signInAnonymously(firebaseAuth);
-        dispatch({ type: 'SET_USER_ID', payload: userCredential.user.uid });
-        
-        dispatch({ type: 'SET_LOADING', payload: false });
-      } catch (error) {
-        console.error('Firebase initialization error:', error);
-        dispatch({ type: 'SET_ERROR', payload: '初始化失敗：' + error.message });
-        dispatch({ type: 'SET_LOADING', payload: false });
-      }
-    };
+      // 設置「智慧手環」監聽器 (onAuthStateChanged)
+      // 這會一直監視使用者的登入狀態
+      const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
+        if (user) {
+          // 如果 user 存在，代表手環是綠燈 (已登入)
+          // 我們就把他的 ID 記錄下來
+          dispatch({ type: 'SET_USER_ID', payload: user.uid });
+          dispatch({ type: 'SET_LOADING', payload: false }); // 關閉載入畫面
+        } else {
+          // 如果 user 是 null，代表手環沒亮 (未登入)
+          // 我們就嘗試幫他匿名登入，給他一個新的手環
+          try {
+            await signInAnonymously(firebaseAuth);
+            // 登入成功後，上面的 onAuthStateChanged 會再次被觸發，
+            // 並且 user 就會存在了，所以這裡不用再 dispatch
+          } catch (authError) {
+            console.error('匿名登入失敗:', authError);
+            dispatch({ type: 'SET_ERROR', payload: '無法驗證使用者身份' });
+            dispatch({ type: 'SET_LOADING', payload: false });
+          }
+        }
+      });
 
-    initializeFirebase();
-  }, [dispatch]);
+      // 這是一個「清理」函式
+      // 當使用者離開這個頁面時，我們會告訴監聽器可以下班了，節省資源
+      return () => unsubscribe();
+
+    } catch (error) {
+      console.error('Firebase 初始化錯誤:', error);
+      dispatch({ type: 'SET_ERROR', payload: '初始化失敗：' + error.message });
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
+  initializeFirebase();
+}, [dispatch]); // 這個陣列告訴 React 這個 effect 依賴 dispatch，基本上只會執行一次
 
   // 開始遊戲
   const startGame = useCallback(() => {
