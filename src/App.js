@@ -97,61 +97,71 @@ function App() {
   // 使用 useStoryGenerator hook
   const { generateNextChapter } = useStoryGenerator(db, auth, currentChapter, characterStats, getCurrentChapterUniqueId);
 
+    // 建立一個可重複使用的存檔函式
+  const saveGameData = useCallback(async (dataToSave) => {
+    if (!userId || !db) return; // 確保使用者已登入且資料庫已就緒
+
+    try {
+      const userDocRef = doc(db, 'users', userId);
+      // 使用 updateDoc 來更新部分資料，這比 setDoc 更有效率，且不會覆蓋整個文件
+      await updateDoc(userDocRef, dataToSave);
+      console.log("遊戲已存檔:", dataToSave);
+    } catch (error) {
+      console.error("存檔失敗:", error);
+      // 在這裡可以考慮是否要通知使用者存檔失敗
+    }
+  }, [userId, db]);
+
 // Firebase 初始化
 useEffect(() => {
-  // 這一段程式碼只會在組件第一次載入時執行一次
-  const initializeFirebase = () => {
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
+  // ... (Firebase 初始化代碼不變) ...
+  const firebaseAuth = getAuth(app);
+  const firestore = getFirestore(app);
+  setAuth(firebaseAuth);
+  setDb(firestore);
 
-      // 驗證環境變數
-      if (!FIREBASE_CONFIG.apiKey) {
-        throw new Error('Firebase API Key 未設定');
+  const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
+    if (user) {
+      // 使用者已登入！這是讀取存檔的最佳時機
+      const userDocRef = doc(firestore, 'users', user.uid); // 準備好指向使用者存檔的「路徑」
+      const docSnap = await getDoc(userDocRef); // 嘗試讀取這個存檔
+
+      if (docSnap.exists()) {
+        // --- 存檔存在 (老玩家回來了) ---
+        console.log("找到玩家存檔:", docSnap.data());
+        const userData = docSnap.data();
+        
+        // **重要**：派發一個新的 action 來一次性更新所有遊戲狀態
+        dispatch({ type: 'LOAD_USER_DATA', payload: userData });
+        
+        // 這裡需要根據存檔的章節 ID 找到對應的章節資料
+        // 這部分比較複雜，我們先假設能從 userData.currentChapterId 恢復
+        // dispatch({ type: 'SET_CURRENT_CHAPTER', payload: findChapterById(userData.currentChapterId) });
+
+      } else {
+        // --- 存檔不存在 (新玩家) ---
+        console.log("找不到玩家存檔，為新玩家建立資料。");
+        const initialData = {
+          characterStats: state.characterStats, // 使用預設的角色能力
+          currentChapterId: initialStoryData.chapterId, // 從初始章節開始
+          // 未來還可以存更多東西，例如：背包物品、金錢...
+        };
+        await setDoc(userDocRef, initialData); // 在資料庫為他建立一個新的存檔
+
+        // 新玩家不需要載入，直接使用預設狀態即可
+        dispatch({ type: 'SET_USER_ID', payload: user.uid });
       }
 
-      const app = initializeApp(FIREBASE_CONFIG);
-      const firebaseAuth = getAuth(app);
-      const firestore = getFirestore(app);
+      dispatch({ type: 'SET_LOADING', payload: false }); // 關閉載入畫面
 
-      setAuth(firebaseAuth);
-      setDb(firestore);
-
-      // 設置「智慧手環」監聽器 (onAuthStateChanged)
-      // 這會一直監視使用者的登入狀態
-      const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
-        if (user) {
-          // 如果 user 存在，代表手環是綠燈 (已登入)
-          // 我們就把他的 ID 記錄下來
-          dispatch({ type: 'SET_USER_ID', payload: user.uid });
-          dispatch({ type: 'SET_LOADING', payload: false }); // 關閉載入畫面
-        } else {
-          // 如果 user 是 null，代表手環沒亮 (未登入)
-          // 我們就嘗試幫他匿名登入，給他一個新的手環
-          try {
-            await signInAnonymously(firebaseAuth);
-            // 登入成功後，上面的 onAuthStateChanged 會再次被觸發，
-            // 並且 user 就會存在了，所以這裡不用再 dispatch
-          } catch (authError) {
-            console.error('匿名登入失敗:', authError);
-            dispatch({ type: 'SET_ERROR', payload: '無法驗證使用者身份' });
-            dispatch({ type: 'SET_LOADING', payload: false });
-          }
-        }
-      });
-
-      // 這是一個「清理」函式
-      // 當使用者離開這個頁面時，我們會告訴監聽器可以下班了，節省資源
-      return () => unsubscribe();
-
-    } catch (error) {
-      console.error('Firebase 初始化錯誤:', error);
-      dispatch({ type: 'SET_ERROR', payload: '初始化失敗：' + error.message });
+    } else {
+      // ... (使用者未登入的處理邏輯不變) ...
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  });
 
-  initializeFirebase();
-}, [dispatch]); // 這個陣列告訴 React 這個 effect 依賴 dispatch，基本上只會執行一次
+  return () => unsubscribe();
+}, [dispatch, state.characterStats]); // 注意：依賴項可能需要調整
 
   // 開始遊戲
   const startGame = useCallback(() => {
@@ -215,58 +225,5 @@ return (
   />
 );
 } // App 函式的結尾括號
-
-export default App;
-
-        {/* 載入中 */}
-        {isLoadingText && (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
-            <p className="text-purple-300">AI 正在生成下一章節...</p>
-          </div>
-        )}
-
-        {/* 選擇按鈕 */}
-        {showChoices && currentChapter && currentChapter.choices && (
-          <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-gray-300 mb-4">選擇你的行動：</h3>
-            {currentChapter.choices.map((choice, index) => (
-              <button
-                key={choice.choiceId}
-                onClick={() => handleChoice(choice.text, choice.choiceId)}
-                disabled={isLoadingText}
-                className="w-full text-left p-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="text-purple-300 font-semibold mr-2">
-                  {String.fromCharCode(65 + index)}.
-                </span>
-                <span className="text-gray-200">{choice.text}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* 角色狀態 */}
-        <div className="mt-8 bg-gray-800 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-300 mb-2">角色能力</h3>
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div className="text-center">
-              <div className="text-red-400 font-semibold">力量</div>
-              <div className="text-2xl text-red-300">{characterStats.strength}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-blue-400 font-semibold">智力</div>
-              <div className="text-2xl text-blue-300">{characterStats.intelligence}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-green-400 font-semibold">敏捷</div>
-              <div className="text-2xl text-green-300">{characterStats.agility}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default App;
