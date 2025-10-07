@@ -165,32 +165,14 @@ useEffect(() => {
   }, [db, auth, currentChapter, generateNextChapter, dispatch]);
 
   // 載入中畫面
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-purple-500"></div>
-        <p className="ml-4 text-xl text-purple-200 font-semibold">正在載入介面...</p>
-      </div>
-    );
-  }
+if (loading) {
+  return <LoadingScreen />;
+}
 
   // 錯誤畫面
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-900">
-        <div className="bg-red-900 p-6 rounded-lg max-w-md">
-          <h2 className="text-2xl font-bold text-red-200 mb-4">發生錯誤</h2>
-          <p className="text-red-300 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-          >
-            重新載入
-          </button>
-        </div>
-      </div>
-    );
-  }
+if (error) {
+  return <ErrorScreen error={error} />;
+}
 
   // 歡迎畫面
   if (showWelcomeScreen) {
@@ -198,34 +180,19 @@ useEffect(() => {
   }
 
   // 主遊戲畫面
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-gray-100 p-4">
-      <div className="max-w-4xl mx-auto">
-        {/* 標題 */}
-        <header className="text-center mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Infinovel
-          </h1>
-          <div className="text-sm text-gray-400 mt-2">
-            用戶ID: {userId} | 使用 Hugging Face AI
-          </div>
-        </header>
+return (
+  <GameScreen
+    userId={userId}
+    currentChapter={currentChapter}
+    isLoadingText={isLoadingText}
+    showChoices={showChoices}
+    handleChoice={handleChoice}
+    characterStats={characterStats}
+  />
+);
+} // App 函式的結尾括號
 
-        {/* 故事內容 */}
-        {currentChapter && (
-          <div className="bg-gray-800 rounded-lg p-6 mb-6">
-            <h2 className="text-2xl font-semibold mb-4 text-purple-300">
-              {currentChapter.title}
-            </h2>
-            <div className="space-y-4">
-              {currentChapter.content.map((paragraph, index) => (
-                <p key={index} className="text-gray-200 leading-relaxed">
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-          </div>
-        )}
+export default App;
 
         {/* 載入中 */}
         {isLoadingText && (
