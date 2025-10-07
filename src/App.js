@@ -1,13 +1,37 @@
+// 核心 React 功能
 import React, { useState, useEffect, useCallback, useRef, useContext } from 'react';
+
+// Firebase 相關功能
 import { initializeApp } from 'firebase/app';
 import {
-  getAuth, signInAnonymously, onAuthStateChanged,
-  createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
-  GoogleAuthProvider, signInWithPopup
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, increment, collection } from 'firebase/firestore';
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  increment,
+  collection
+} from 'firebase/firestore';
+
+// App 內部狀態和自定義功能
 import { StateContext } from './context/state';
 import { useStoryGenerator } from './hooks/useStoryGenerator';
+
+// 拆分出去的畫面元件 (Components)
+import LoadingScreen from './components/LoadingScreen';
+import ErrorScreen from './components/ErrorScreen';
+import GameScreen from './components/GameScreen';
+import WelcomeScreen from './components/WelcomeScreen'; // 根據您之前提供的檔案加入
 
 // 配置常量
 const DEFAULT_LOAD_LIMIT = 5;
