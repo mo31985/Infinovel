@@ -1,4 +1,6 @@
-// 应用程序常量定义 - 统一管理所有常量
+// src/constants.js
+// 我已經移除了會導致編譯失敗的 APP_ID 和 FIREBASE_CONFIG 部分。
+// Firebase 的配置現在統一由 App.js 使用環境變數 (process.env) 處理，更安全也更標準。
 
 // === 用户限制常量 ===
 export const DEFAULT_LOAD_LIMIT = 5; // 普通用户的载入次数上限
@@ -9,32 +11,6 @@ export const VIP_SAVE_LIMIT = 10; // VIP 用户的保存次数上限
 // === 角色系统常量 ===
 export const INITIAL_STAT_POINTS = 10; // 角色创建时可分配的初始能力点数
 export const STAT_ACCUMULATION_THRESHOLD = 3; // 每累积3点提升1点能力值
-
-// === 应用程序配置 ===
-// 从全局作用域获取应用程序 ID，并设置回退机制
-export const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'infinovel';
-
-// === Firebase 配置 ===
-// 从 Canvas 环境提供的全局变数获取 Firebase 配置，并安全地解析
-export const FIREBASE_CONFIG = (() => {
-  console.log("--- Firebase Config Initialization ---");
-  console.log("Raw __firebase_config:", typeof __firebase_config, __firebase_config);
-  
-  if (typeof __firebase_config === 'string' && __firebase_config.trim() !== '') {
-    try {
-      const parsedConfig = JSON.parse(__firebase_config);
-      console.log("Parsed FIREBASE_CONFIG:", parsedConfig);
-      console.log("FIREBASE_CONFIG Project ID (用于调试):", parsedConfig.projectId); 
-      return parsedConfig;
-    } catch (e) {
-      console.error("Error parsing __firebase_config (likely invalid JSON or empty string):", e);
-      console.log("FIREBASE_CONFIG set to empty object due to parsing error.");
-      return {};
-    }
-  }
-  console.warn("__firebase_config is not a valid non-empty string. Firebase will initialize with an empty config, likely failing.");
-  return {};
-})();
 
 // === 初始故事数据 ===
 export const initialStoryData = {
@@ -90,5 +66,3 @@ export const UI_TEXTS = {
     WEAK_PASSWORD: '密碼強度不足，請至少輸入 6 個字符。'
   }
 };
-
-console.log('应用程序正在使用 Canvas 环境提供的 Firebase 配置。');
