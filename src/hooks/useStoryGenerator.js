@@ -1,46 +1,67 @@
 // src/hooks/useStoryGenerator.js
 
 import { useCallback } from 'react';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 
-export const useStoryGenerator = (db, auth, currentChapter, characterStats) => {
-  
-  const generateNextChapter = useCallback(async (choiceText, choiceId, promptContext) => {
-    console.log("傳送給 AI 的額外情境:", promptContext);
+export const useStoryGenerator = (characterStats) => {
+  const db = getFirestore();
+
+  const fetchOrGenerateChapter = useCallback(async (parentChapter, choice) => {
     
-    // --- 在這裡是你呼叫 AI API 的邏輯 ---
-    // 範例：
-    const fullPrompt = `
-      这是目前的章节内容: ${JSON.stringify(currentChapter.content)}
-      玩家的角色能力是: ${JSON.stringify(characterStats)}
-      ${promptContext} 
-      请根据以上信息，生成故事的下一章。
-    `;
-    
-    // const response = await your_ai_api_call(fullPrompt);
-    // const nextChapterData = parse_ai_response(response);
-    
-    // --- 為了測試，我們先返回一個模擬的成功/失敗結果 ---
-    await new Promise(resolve => setTimeout(resolve, 1500)); // 模拟网路延迟
-    
-    const isSuccess = promptContext.includes("成功");
-    
-    const mockChapter = {
-      success: true,
-      chapter: {
-        chapterId: isSuccess ? `${choiceId}_success` : `${choiceId}_fail`,
-        title: isSuccess ? '成功的调查' : '失败的尝试',
-        content: isSuccess 
-          ? ['你敏锐的智力让你发现了一个隐藏的机关，墙壁上的一块砖似乎可以按下去...', '你找到了格雷森博士的秘密日记！'] 
-          : ['你找了半天，却一无所获，实验室里凌乱的物品让你头晕目眩...', '也许线索并不在这里。'],
-        choices: [
-          { text: '继续阅读日记', choiceId: 'read_diary' }
-        ]
+    // 1. 產生一個唯一的路徑 ID，代表這個選擇
+    const pathId = `${parentChapter.chapterId}_${choice.choiceId}`;
+    const chapterRef = doc(db, 'chapters', pathId);
+
+    // 2. 嘗試從 Firestore 讀取這個已生成的章節
+    const docSnap = await getDoc(chapterRef);
+
+    if (docSnap.exists()) {
+      // 2a. 找到了！直接返回資料庫中的章節（快取命中）
+      console.log(`--- 從 Firestore 快取讀取章節: ${pathId} ---`);
+      return { success: true, chapter: docSnap.data() };
+    } else {
+      // 2b. 沒找到！呼叫 AI 生成新章節（快取未命中）
+      console.log(`--- 快取未命中，呼叫 AI 生成新章節: ${pathId} ---`);
+      
+      let promptContext = `玩家選擇了：'${choice.text}'。`;
+      if (choice.skillCheck) {
+        const { stat, threshold } = choice.skillCheck;
+        const playerStatValue = characterStats[stat] || 0;
+        if (playerStatValue >= threshold) {
+          promptContext += ` 並且因為他們的'${stat}'能力值夠高 ( ${playerStatValue} >= ${threshold} )，所以檢定成功了。`;
+        } else {
+          promptContext += ` 但可惜他們的'${stat}'能力值不夠 ( ${playerStatValue} < ${threshold} )，所以檢定失敗了。`;
+        }
       }
-    };
-    
-    return mockChapter;
-    
-  }, [currentChapter, characterStats]);
 
-  return { generateNextChapter };
+      // =============================================================
+      // 【重要】在這裡呼叫你真正的 AI API 
+      //  你需要將 parentChapter, choice, promptContext 等資訊傳給 AI
+      // =============================================================
+      console.log("準備傳送給 AI 的 Prompt 情境:", promptContext);
+      // const generatedData = await your_real_ai_api_call(fullPrompt);
+      
+      // 為了演示，我們先用一個模擬的 AI 回應
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 模擬 AI 生成時間
+      const isSuccess = !promptContext.includes("失敗");
+      const generatedData = {
+          chapterId: pathId,
+          title: isSuccess ? `調查成功：${choice.text}` : `調查失敗：${choice.text}`,
+          content: isSuccess ? ['你憑藉敏銳的洞察力，發現了一個之前忽略的細節...', '這讓你離真相更近了一步。'] : ['你努力尋找，但實驗室的混亂讓你毫無頭緒...', '也許換個方向會更好。'],
+          choices: [{ text: '繼續探索', choiceId: 'continue_exploring' }],
+          parentChoice: `${parentChapter.chapterId}/${choice.choiceId}`,
+      };
+      // =============================================================
+      // 模擬 AI 回應結束
+      // =============================================================
+
+      // 3. 將 AI 生成的新章節存入 Firestore 的 `chapters` 集合，供之後使用
+      await setDoc(chapterRef, generatedData);
+      console.log(`--- 新章節已存入 Firestore: ${pathId} ---`);
+
+      return { success: true, chapter: generatedData };
+    }
+  }, [db, characterStats]);
+
+  return { fetchOrGenerateChapter };
 };
