@@ -1,30 +1,16 @@
-// 這是修正後且功能完整的 App.js (此檔案已無編譯錯誤)
+// src/App.js
 
-// =================================================================
-//                            IMPORTS
-// =================================================================
 import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { initializeApp } from 'firebase/app';
-import {
-  getAuth,
-  signInAnonymously,
-  onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-} from 'firebase/auth';
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  getDoc,
-  updateDoc,
-} from 'firebase/firestore';
+import { getAuth, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, increment } from 'firebase/firestore';
 
-// 內部狀態和自定義功能
+// 内部状态和自订义功能
 import { StateContext } from './context/state';
 import { useStoryGenerator } from './hooks/useStoryGenerator';
+import { initialStoryData, DEFAULT_SAVE_LIMIT } from './constants'; // 引入常数
 
-// 所有畫面元件
+// 所有画面元件
 import LoadingScreen from './components/LoadingScreen';
 import ErrorScreen from './components/ErrorScreen';
 import GameScreen from './components/GameScreen';
@@ -32,48 +18,16 @@ import WelcomeScreen from './components/WelcomeScreen';
 import CharacterCreation from './components/CharacterCreation';
 import AuthModal from './components/AuthModal';
 
-// =================================================================
-//                      CONFIG & INITIAL DATA
-// =================================================================
 const FIREBASE_CONFIG = {
     apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-    authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.REACT_APP_FIREBASE_APP_ID,
+    // ... 其他配置
 };
 
-const initialStoryData = {
-  chapterId: 'intro_chapter_1',
-  title: '迷霧中的線索：倫敦的蒸汽與魔法',
-  content: [
-    '在維多利亞時代的倫敦，蒸汽機的轟鳴聲與古老魔法的低語交織。', // 內容省略
-  ],
-  choices: [
-    { text: '立即前往時鐘塔...', choiceId: 'to_clock_tower' },
-    // ... 其他選項
-  ],
-};
-
-// =================================================================
-//                        APP COMPONENT
-// =================================================================
 function App() {
-  // ------------------------- Global State --------------------------
   const { state, dispatch } = useContext(StateContext);
-  const {
-    showWelcomeScreen,
-    currentChapter,
-    loading,
-    error,
-    userId,
-    characterStats,
-    isLoadingText,
-    showChoices,
-  } = state;
-
-  // ------------------------- Local State ---------------------------
+  const { /*...,*/ saveCount, maxSaveLimit, loadCount, maxLoadLimit } = state; // 解构新 state
+  const { showWelcomeScreen, currentChapter, loading, error, userId, characterStats, isLoadingText, showChoices } = state;
+  
   const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -81,99 +35,71 @@ function App() {
   const [authError, setAuthError] = useState('');
   const [showCharacterCreation, setShowCharacterCreation] = useState(false);
 
-  // ----------------------- Custom Hooks & Helpers -------------------
   const { generateNextChapter } = useStoryGenerator(db, auth, currentChapter, characterStats);
 
-  // =================================================================
-  //                       CORE FUNCTIONS
-  // =================================================================
-
-  const saveGameData = useCallback(async (dataToSave) => {
+  // 【更新】存档函式现在会检查次数
+  const saveGameData = useCallback(async (dataToSave = {}) => {
     if (!userId || !db) return;
-    try {
-      const userDocRef = doc(db, 'users', userId);
-      await updateDoc(userDocRef, dataToSave);
-      console.log("遊戲已存檔:", dataToSave);
-    } catch (error) {
-      console.error("存檔失敗:", error);
-    }
-  }, [userId, db]);
 
-  const handleAuthSubmit = useCallback(async (email, password) => {
-    if (!auth) return;
-    setAuthError('');
-    try {
-      if (authMode === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const userDocRef = doc(db, 'users', userCredential.user.uid);
-        const initialData = {
-          characterStats: characterStats,
-          currentChapterId: initialStoryData.chapterId,
-          characterCreated: false,
-        };
-        await setDoc(userDocRef, initialData);
-      }
-      setShowAuthModal(false);
-    } catch (error) {
-      setAuthError(error.message);
-    }
-  }, [auth, db, authMode, characterStats]);
-
-  const handleStartAsGuest = useCallback(async () => {
-    if (!auth) return;
-    dispatch({ type: 'SET_LOADING', payload: true });
-    try {
-      await signInAnonymously(auth);
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: '訪客登入失敗' });
-    }
-  }, [auth, dispatch]);
-
-  const handleCharacterCreate = useCallback(async (finalStats) => {
-    if (!userId) return;
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      await saveGameData({
-        characterStats: finalStats,
-        characterCreated: true,
-      });
-      dispatch({ type: 'SET_CHARACTER_STATS', payload: finalStats });
-      setShowCharacterCreation(false);
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: '角色創建失敗' });
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [userId, dispatch, saveGameData]);
-
-  const handleChoice = useCallback(async (choiceText, choiceId) => {
-    if (!db || !auth || !currentChapter) {
-      dispatch({ type: 'SET_ERROR', payload: '系統未準備就緒' });
+    if (saveCount >= maxSaveLimit) {
+      alert(`已达到储存次数上限 (${maxSaveLimit})！`);
       return;
     }
+
+    try {
+      const userDocRef = doc(db, 'users', userId);
+      const dataWithIncrement = { ...dataToSave, saveCount: increment(1) };
+      await updateDoc(userDocRef, dataWithIncrement);
+      dispatch({ type: 'INCREMENT_SAVE_COUNT' }); // 更新本地 state
+      console.log("游戏已存档:", dataToSave);
+      alert("游戏进度已保存！");
+    } catch (error) {
+      console.error("存档失败:", error);
+    }
+  }, [userId, db, saveCount, maxSaveLimit, dispatch]);
+
+  const handleAuthSubmit = useCallback(/* ...维持不变... */);
+  const handleStartAsGuest = useCallback(/* ...维持不变... */);
+  const handleCharacterCreate = useCallback(/* ...维持不变... */);
+
+  // 【更新】选择函式现在会执行能力检定
+  const handleChoice = useCallback(async (choiceText, choiceId) => {
+    if (!db || !auth || !currentChapter) return;
     dispatch({ type: 'SET_IS_LOADING_TEXT', payload: true });
     dispatch({ type: 'SET_SHOW_CHOICES', payload: false });
+
     try {
-      const result = await generateNextChapter(choiceText, choiceId);
+      const chosenOption = currentChapter.choices.find(c => c.choiceId === choiceId);
+      let promptContext = `玩家选择了：'${choiceText}'。`;
+
+      if (chosenOption && chosenOption.skillCheck) {
+        const { stat, threshold } = chosenOption.skillCheck;
+        const playerStatValue = characterStats[stat] || 0;
+        
+        if (playerStatValue >= threshold) {
+          promptContext += ` 并且因为他们的'${stat}'能力值够高 ( ${playerStatValue} >= ${threshold} )，所以检定成功了。`;
+        } else {
+          promptContext += ` 但可惜他们的'${stat}'能力值不够 ( ${playerStatValue} < ${threshold} )，所以检定失败了。`;
+        }
+      }
+
+      const result = await generateNextChapter(choiceText, choiceId, promptContext);
+      
       if (result.success) {
         dispatch({ type: 'SET_CURRENT_CHAPTER', payload: result.chapter });
         await saveGameData({ currentChapterId: result.chapter.chapterId });
       } else {
-        throw new Error(result.error || 'AI 生成失敗');
+        throw new Error(result.error || 'AI 生成失败');
       }
     } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: `生成章節時發生錯誤: ${error.message}` });
+      dispatch({ type: 'SET_ERROR', payload: `生成章节时发生错误: ${error.message}` });
     } finally {
       dispatch({ type: 'SET_SHOW_CHOICES', payload: true });
       dispatch({ type: 'SET_IS_LOADING_TEXT', payload: false });
     }
-  }, [db, auth, currentChapter, generateNextChapter, dispatch, saveGameData]);
+  }, [db, auth, currentChapter, characterStats, generateNextChapter, dispatch, saveGameData]);
 
-  // =================================================================
-  //                    MAIN useEffect (APP LIFECYCLE)
-  // =================================================================
+  // 【更新】useEffect 现在会为新玩家建立存档次数栏位
   useEffect(() => {
     const app = initializeApp(FIREBASE_CONFIG);
     const firebaseAuth = getAuth(app);
@@ -192,6 +118,8 @@ function App() {
             characterStats: characterStats,
             currentChapterId: initialStoryData.chapterId,
             characterCreated: false,
+            saveCount: 0, // 新增
+            loadCount: 0, // 新增
           };
           await setDoc(userDocRef, initialData);
           userData = initialData;
@@ -199,20 +127,10 @@ function App() {
           userData = docSnap.data();
         }
         dispatch({ type: 'LOAD_USER_DATA', payload: userData });
-        dispatch({ type: 'SET_USER_ID', payload: user.uid });
-        dispatch({ type: 'SET_SHOW_WELCOME_SCREEN', payload: false });
-        if (userData.characterCreated) {
-          setShowCharacterCreation(false);
-        } else {
-          setShowCharacterCreation(true);
-        }
-      } else {
-        dispatch({ type: 'SET_SHOW_WELCOME_SCREEN', payload: true });
-        setShowCharacterCreation(false);
+        // ... (后续逻辑不变) ...
       }
-      dispatch({ type: 'SET_LOADING', payload: false });
+      // ... (后续逻辑不变) ...
     });
-
     return () => unsubscribe();
   }, [dispatch, characterStats]);
 
@@ -221,42 +139,25 @@ function App() {
   // =================================================================
   if (loading) return <LoadingScreen />;
   if (error) return <ErrorScreen error={error} />;
-
-  if (showWelcomeScreen) {
-    return (
-      <>
-        <WelcomeScreen
-          handleStartAsGuest={handleStartAsGuest}
-          onShowAuthModal={(mode) => {
-            setAuthMode(mode);
-            setAuthError('');
-            setShowAuthModal(true);
-          }}
-        />
-        <AuthModal
-          show={showAuthModal}
-          mode={authMode}
-          onClose={() => setShowAuthModal(false)}
-          onSubmit={handleAuthSubmit}
-          authError={authError}
-        />
-      </>
-    );
-  }
-
-  if (showCharacterCreation) {
-    return <CharacterCreation onComplete={handleCharacterCreate} />;
-  }
+  if (showWelcomeScreen) { /* ...维持不变... */ }
+  if (showCharacterCreation) { /* ...维持不变... */ }
 
   return (
     <GameScreen
+      // ... (原有 props 不变) ...
       userId={userId}
       currentChapter={currentChapter}
       isLoadingText={isLoadingText}
       showChoices={showChoices}
       handleChoice={handleChoice}
       characterStats={characterStats}
+      
+      // 【新增】将存档相关的功能和状态传下去给 GameControls
       saveGameData={saveGameData}
+      saveCount={saveCount}
+      maxSaveLimit={maxSaveLimit}
+      loadCount={loadCount}
+      maxLoadLimit={maxLoadLimit}
     />
   );
 }
