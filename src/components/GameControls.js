@@ -4,7 +4,7 @@ import React from 'react';
 
 const GameControls = ({ 
   saveGameData, 
-  // handleLoadGame, // 未来可以传入读档函式
+  // handleLoadGame, // 未來可以傳入讀檔函式
   saveCount, 
   maxSaveLimit,
   loadCount,
@@ -24,7 +24,7 @@ const GameControls = ({
             : 'bg-blue-600 hover:bg-blue-700 text-white'
           }`}
       >
-        保存進度 ({saveCount}/{maxSaveLimit})
+        儲存進度 ({saveCount}/{maxSaveLimit})
       </button>
       
       <button 
@@ -36,7 +36,7 @@ const GameControls = ({
             : 'bg-green-600 hover:bg-green-700 text-white'
           }`}
       >
-        载入進度 ({loadCount}/{maxLoadLimit})
+        載入進度 ({loadCount}/{maxLoadLimit})
       </button>
     </div>
   );
