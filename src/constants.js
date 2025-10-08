@@ -1,45 +1,39 @@
 // src/constants.js
 
-// === 用户限制常量 ===
-export const DEFAULT_LOAD_LIMIT = 5;
-export const DEFAULT_SAVE_LIMIT = 3;
-export const VIP_LOAD_LIMIT = 20;
-export const VIP_SAVE_LIMIT = 10;
-
-// === 角色系统常量 ===
-export const INITIAL_STAT_POINTS = 10;
-export const STAT_ACCUMULATION_THRESHOLD = 3;
-
-// === 初始故事数据 ===
+// === 初始故事數據 ===
+// 這是整個故事唯一的“硬編碼”入口點。
 export const initialStoryData = {
   chapterId: 'intro_chapter_1',
-  title: '迷雾中的线索：伦敦的蒸气与魔法',
+  title: '迷霧中的線索：倫敦的蒸汽與魔法',
   content: [
-    '在维多利亚时代的伦敦...', // 内容省略
-    '窗外，伦敦特区永不散去的蒸气迷雾...',
-    '艾伦抵达格雷森博士的实验室...',
-    '艾伦皱起了眉头...',
+    '在維多利亞時代的倫敦，蒸汽機的轟鳴聲與古老魔法的低語交織。艾倫偵探，一位以敏銳洞察力和對超自然現象的獨特理解而聞名的私家偵探，此時正坐在他那間瀰漫著煙草味的辦公室裡。',
+    '窗外，倫敦特區永不散去的蒸汽迷霧像一條巨龍般盤踞。一封緊急電報打破了清晨的寧靜，電報來自皇家科學院：著名發明家維克多·格雷森博士離奇失蹤了。',
+    '艾倫抵達格雷森博士的實驗室，那裡一片狼藉... 在凌亂的書桌上，艾倫的目光被一張紙條吸引。上面潦草地寫著：「時鐘塔，午夜，等待。」',
   ],
   choices: [
-    { text: '立即前往时钟塔，看看午夜有什么在等待。', choiceId: 'to_clock_tower' },
-    
-    // 【重要更新】这个选项现在需要进行能力检定
+    { text: '立即前往時鐘塔，看看午夜有什麼在等待。', choiceId: 'to_clock_tower' },
     { 
-      text: '先仔细调查格雷森博士的实验室，寻找更多隐藏线索。', 
+      text: '先仔細調查格雷森博士的實驗室，尋找更多隱藏線索。', 
       choiceId: 'investigate_lab_thoroughly',
       skillCheck: {
-        stat: 'intelligence', // 需要检定的能力
-        threshold: 12,        // 成功需要的门槛值
+        stat: 'intelligence', // 需要檢定的能力
+        threshold: 12,        // 成功需要的門檻值
       }
     },
-
-    { text: '回到办公室，研究格雷森博士的背景资料和「时间机械」的理论。', choiceId: 'research_grayson_background' },
+    { text: '回到辦公室，研究格雷森博士的背景資料。', choiceId: 'research_grayson_background' },
   ],
-  isTimedChoice: false,
-  timeLimit: 0,
 };
 
-// === UI 文本常量 ===
+
+// === UI 文本常數 ===
+// 將 UI 文本集中管理是很好的做法，我們把它加回來
 export const UI_TEXTS = {
-  // ... (此部分维持不变)
+  WELCOME: {
+    TITLE: '歡迎來到互動式小說',
+    SUBTITLE: '選擇您的旅程：',
+    START_AS_GUEST: '以訪客身份開始遊戲',
+    LOGIN: '登入現有帳戶',
+    REGISTER: '註冊新帳戶'
+  },
+  // ... 其他 UI 文本 ...
 };
